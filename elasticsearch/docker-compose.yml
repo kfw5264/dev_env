@@ -1,0 +1,35 @@
+name: dev-elasticsearch
+
+services:
+  elasticsearch:
+    # 8.x 稳定线最新补丁（已确认镜像站可用）
+    image: elasticsearch:8.19.3
+    container_name: dev-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - cluster.name=dev-es
+      # 开发环境关闭安全认证，生产环境请勿照搬
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - TZ=Asia/Shanghai
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      # 数据使用命名卷，不映射到主机目录
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health' >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  es_data:

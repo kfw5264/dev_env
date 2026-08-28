@@ -1,0 +1,31 @@
+name: dev-postgresql
+
+services:
+  postgres:
+    # 官方 pgvector 镜像：自带 pgvector，且包含 postgres contrib 常用扩展
+    image: pgvector/pgvector:pg17
+    container_name: dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_DB: ${POSTGRES_DB:-dev}
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      # 数据使用命名卷，不映射到主机目录
+      - pg_data:/var/lib/postgresql/data
+      - ./conf/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      # 仅首次初始化（数据卷为空）时执行
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  pg_data:
