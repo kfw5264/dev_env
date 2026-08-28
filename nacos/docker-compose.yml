@@ -1,0 +1,56 @@
+name: dev-nacos
+
+services:
+  nacos:
+    # 当前最新稳定版（2026-08 经镜像站探测确认）
+    image: nacos/nacos-server:v3.2.2
+    container_name: dev-nacos
+    hostname: dev-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      # ---- 数据源：连接 mysql 栈的 dev-mysql 容器（不另起 MySQL） ----
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: dev-mysql
+      MYSQL_SERVICE_PORT: "3306"
+      MYSQL_SERVICE_DB_NAME: nacos_data
+      MYSQL_SERVICE_USER: nacos_admin
+      MYSQL_SERVICE_PASSWORD: ${MYSQL_PASSWORD:-Nacos_123}
+      # MySQL 9 默认 caching_sha2_password，需 allowPublicKeyRetrieval
+      MYSQL_SERVICE_DB_PARAM: characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      # ---- 鉴权（密钥等敏感值在 .env 中） ----
+      NACOS_AUTH_ENABLE: ${NACOS_AUTH_ENABLE:-true}
+      NACOS_AUTH_SYSTEM_TYPE: nacos
+      NACOS_AUTH_ADMIN_ENABLE: "true"
+      NACOS_AUTH_CONSOLE_ENABLE: "true"
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:?NACOS_AUTH_TOKEN 未设置}
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY:?NACOS_AUTH_IDENTITY_KEY 未设置}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE:?NACOS_AUTH_IDENTITY_VALUE 未设置}
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"    # 主 HTTP API
+      - "9848:9848"    # gRPC（客户端长连接）
+      - "8080:8080"    # 3.x 控制台
+    volumes:
+      # 数据使用命名卷，不映射到主机目录
+      - nacos_data_dir:/home/nacos/data
+    networks:
+      - mysql_net
+    healthcheck:
+      # 镜像内无 curl，用 bash 内置 TCP 探测 8848 端口
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8848' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+networks:
+  # 复用 mysql 栈的网络，直接通过容器名 dev-mysql 访问
+  # 注意：启动前确保 mysql 栈已 up（其网络存在）
+  mysql_net:
+    external: true
+    name: dev-mysql_default
+
+volumes:
+  nacos_data_dir:

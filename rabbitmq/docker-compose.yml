@@ -1,0 +1,32 @@
+name: dev-rabbitmq
+
+services:
+  rabbitmq:
+    # 本地已有镜像，自带 management 插件（15672 控制台）
+    image: rabbitmq:4.3.5-management
+    container_name: dev-rabbitmq
+    # 固定主机名：RabbitMQ 以主机名作节点名，固定后数据卷才能稳定复用
+    hostname: dev-rabbitmq
+    restart: unless-stopped
+    environment:
+      # 首次初始化时创建默认用户/密码/虚拟主机（官方文档注明仅用于开发环境）
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-dev}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-dev123}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-dev}
+      TZ: Asia/Shanghai
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management 控制台
+    volumes:
+      # 数据使用命名卷，不映射到主机目录
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./conf/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  rabbitmq_data:
