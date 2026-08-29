@@ -7,6 +7,8 @@ services:
     container_name: dev-redis
     restart: unless-stopped
     environment:
+      # 注入容器，供健康检查中的 $${REDIS_PASSWORD} 使用
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       TZ: Asia/Shanghai
     command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:-redis123}"]
     ports:
